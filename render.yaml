@@ -1,0 +1,27 @@
+services:
+  # StoreWatch Backend Web Service on Render
+  - type: web
+    name: storewatch-api
+    runtime: node
+    plan: starter
+    rootDir: server
+    buildCommand: npm install && npx playwright install --with-deps chromium
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PLAYWRIGHT_HEADLESS
+        value: "true"
+      - key: SCRAPER_TIMEOUT_MS
+        value: "25000"
+      - key: INE_BASE_URL
+        value: "https://demo.inelabteamdev.com"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

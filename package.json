@@ -1,0 +1,13 @@
+{
+  "name": "storewatch-v2",
+  "version": "0.1.0",
+  "description": "StoreWatch v2 – price-monitoring for demo.inelabteamdev.com",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "inspect": "node scripts/inspect-storefront.js"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}

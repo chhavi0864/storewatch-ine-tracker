@@ -1,0 +1,19 @@
+{
+  "name": "storewatch-server",
+  "version": "1.0.0",
+  "description": "StoreWatch v2 backend — INE price & stock tracking API",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "demo": "node scripts/headed-demo.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "playwright": "^1.48.0"
+  }
+}

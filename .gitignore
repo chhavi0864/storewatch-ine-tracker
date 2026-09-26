@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+*.log
+docs/screenshots/
+
+# Client build artifacts & Vite temp files
+client/dist/
+client/vite.config.js.timestamp-*
+
+# Inspection & raw evidence logs
+docs/inspect-log*.txt
+docs/inspect-log.ndjson
+docs/key-evidence.txt
+docs/interaction-evidence.txt
