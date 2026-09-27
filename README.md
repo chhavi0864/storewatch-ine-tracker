@@ -4,6 +4,12 @@
 
 StoreWatch v2 monitors live, option-specific product prices and inventory levels on the INE e-commerce storefront (`demo.inelabteamdev.com`). It solves the storefront's interaction lock, tracks specific variant options (e.g. color tone, storage, kit sizes), maintains an immutable audit log of every scrape attempt, and streams CSV audit exports.
 
+### 🌐 Live Deployment Links
+* **Production Web App (Vercel):** [https://storewatch-ine-tracker.vercel.app](https://storewatch-ine-tracker.vercel.app)
+* **Backend API (Render):** [https://storewatch-ine-tracker.onrender.com](https://storewatch-ine-tracker.onrender.com)
+* **API Health Check:** [https://storewatch-ine-tracker.onrender.com/health](https://storewatch-ine-tracker.onrender.com/health)
+* **Scheduled Scrape Endpoint:** `POST https://storewatch-ine-tracker.onrender.com/internal/scrape-all`
+
 ---
 
 ## 1. System Architecture
@@ -149,7 +155,7 @@ The repository includes [`render.yaml`](render.yaml) for automated Blueprint dep
 * **Root Directory:** `client`
 * **Build Command:** `npm run build`
 * **Output Directory:** `dist`
-* **Environment Variable:** `VITE_API_BASE_URL=https://<YOUR-RENDER-BACKEND-URL>.onrender.com`
+* **Environment Variable:** `VITE_API_BASE_URL=https://storewatch-ine-tracker.onrender.com`
 
 ---
 
@@ -161,11 +167,11 @@ To prevent server resource contention, StoreWatch deliberately relies on an exte
 2. **Security:** Protected by a constant-time secret check (`x-cron-secret: <CRON_SECRET>`) to prevent unauthorized access.
 3. **Execution:** Sequentially iterates across all active tracked products, runs up to 3 attempts with exponential backoff on retries, and writes attempt rows to Supabase.
 4. **Scheduler Integration (cron-job.org):**
-   * **URL:** `https://<YOUR-RENDER-BACKEND>.onrender.com/internal/scrape-all`
+   * **URL:** `https://storewatch-ine-tracker.onrender.com/internal/scrape-all`
    * **Method:** `POST`
    * **Header:** `x-cron-secret: <YOUR_CRON_SECRET>`
-   * **Cadence:** Recommended every 15–30 minutes (`*/15 * * * *`).
-   * **Timeout:** Set to 120s–180s to accommodate sequential headless browser runs.
+   * **Cadence:** Recommended every 15–30 minutes (`*/15 * * * *`) or 1–2 hours.
+   * **Timeout:** Acknowledged asynchronously via `HTTP 202 Accepted` in ~240ms.
 
 ---
 
