@@ -120,6 +120,11 @@ export function validateSuccessQuote(quote) {
     throw new ValidationError(`Invalid current_price: must be a positive number (got ${quote.current_price})`);
   }
 
+  // Reject unrealistic fractional prices that indicate partial or decoy extractions
+  if (quote.current_price < 1.00) {
+    throw new ValidationError(`Invalid current_price: ${quote.current_price} is unrealistically low (likely decoy or partial parse)`);
+  }
+
   if (!quote.currency || typeof quote.currency !== 'string') {
     throw new ValidationError('Currency must be present for a successful quote');
   }

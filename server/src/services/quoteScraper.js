@@ -89,9 +89,11 @@ export async function scrapeQuote({
       }
     }
 
-    // 4. Locate the visible locked quote panel
+    // 4. Locate the visible locked quote panel and ensure it is scrolled into view
     const offerPanel = page.locator('.offer-panel');
-    await offerPanel.first().waitFor({ state: 'visible', timeout: 5000 });
+    await offerPanel.first().waitFor({ state: 'visible', timeout: 8000 });
+    await offerPanel.first().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
     const panelBox = await offerPanel.first().boundingBox();
 
     if (!panelBox) {
@@ -103,7 +105,7 @@ export async function scrapeQuote({
     const checkBtn = page.locator('button.ctl.ctl-main[aria-label*="price"], button.ctl.ctl-main:has-text("Check today")');
 
     let unlocked = false;
-    for (let sweepAttempt = 1; sweepAttempt <= 3; sweepAttempt++) {
+    for (let sweepAttempt = 1; sweepAttempt <= 4; sweepAttempt++) {
       await dismissCookieConsentIfPresent(page);
 
       const y = panelBox.y + panelBox.height / 2;
@@ -113,7 +115,7 @@ export async function scrapeQuote({
       await page.mouse.move(x0, y);
       const sweepT0 = Date.now();
 
-      const steps = 14; // > 8 moves
+      const steps = 16;
       for (let i = 1; i <= steps; i++) {
         if (await page.locator('.consent-scrim').isVisible().catch(() => false)) {
           await dismissCookieConsentIfPresent(page);
@@ -121,11 +123,11 @@ export async function scrapeQuote({
         }
         const curX = x0 + (x1 - x0) * (i / steps);
         await page.mouse.move(curX, y);
-        await page.waitForTimeout(55);
+        await page.waitForTimeout(50);
       }
 
       // 6. Wait roughly 700ms after movement to meet min dwell requirement
-      const remainingDwell = Math.max(0, 700 - (Date.now() - sweepT0));
+      const remainingDwell = Math.max(0, 750 - (Date.now() - sweepT0));
       if (remainingDwell > 0) {
         await page.waitForTimeout(remainingDwell);
       }
@@ -151,8 +153,34 @@ export async function scrapeQuote({
       ).catch(() => {});
     }
 
-    // 8. Click the "Check today’s price" button
+    // 8. Explicitly detect and dismiss cookie consent if it exists, wait for scrim to be hidden, and verify price button is visible and not disabled
     await dismissCookieConsentIfPresent(page);
+    const scrim = page.locator('.consent-scrim').first();
+    try {
+      await scrim.waitFor({ state: 'hidden', timeout: 5000 });
+    } catch {
+      throw new ScraperError('Cookie consent scrim remained visible after 5 seconds', 'CONSENT_OVERLAY');
+    }
+
+    await checkBtn.first().waitFor({ state: 'visible', timeout: 5000 });
+    const isPriceDisabled = await checkBtn.first().getAttribute('disabled');
+    if (isPriceDisabled !== null) {
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector('button.ctl.ctl-main[aria-label*="price"]') ||
+                      document.querySelector('button.ctl.ctl-main');
+          return btn && !btn.hasAttribute('disabled');
+        },
+        null,
+        { timeout: 5000 }
+      ).catch(() => {});
+    }
+
+    const finalDisabled = await checkBtn.first().getAttribute('disabled');
+    if (finalDisabled !== null) {
+      throw new ScraperError('Price check button remained disabled before click', 'BUTTON_DISABLED', true);
+    }
+
     await checkBtn.first().click();
 
     // 9. Wait for revealed visible price and stock fields (offer-ready)
@@ -181,30 +209,30 @@ export async function scrapeQuote({
       let rawPriceText = null;
 
       if (offerRow) {
-        // The storefront renders the actual live unlocked quote inside the <strong> element in .offer-row
-        // (It wraps individual characters in spans with zero-width spaces; taking leaf spans extracted single digits)
-        const strongEl = offerRow.querySelector('strong');
-        if (strongEl && isVisible(strongEl)) {
-          rawPriceText = strongEl.textContent.trim();
-        } else {
-          const textNodes = Array.from(offerRow.querySelectorAll('*')).filter(el => {
-            return isVisible(el) && el.children.length === 0 && el.textContent.trim().length > 0;
-          });
+        // Direct child containers in .offer-row that represent the primary price display
+        const candidates = Array.from(offerRow.children).filter(el => {
+          if (!isVisible(el)) return false;
+          const style = window.getComputedStyle(el);
+          const isStrikethrough = style.textDecorationLine.includes('line-through') || style.textDecoration.includes('line-through');
+          if (isStrikethrough) return false;
 
-          for (const el of textNodes) {
-            const text = el.textContent.trim();
-            const style = window.getComputedStyle(el);
-            const isStrikethrough = style.textDecorationLine.includes('line-through') || style.textDecoration.includes('line-through');
+          const text = el.textContent.trim();
+          if (text.includes('% saving') || text.includes('Member price') || text.includes('Refreshing')) return false;
 
-            if (isStrikethrough) continue;
-            if (text.includes('% saving') || text.includes('Member price') || text.includes('Refreshing')) continue;
+          const hasCurrency = text.includes('₹') || /^Rs\.?/i.test(text) || text.includes('Rs') || text.includes('$') || text.includes('€') || text.includes('£');
+          const hasDigits = /\d/.test(text);
+          if (!hasCurrency || !hasDigits) return false;
 
-            // Found price text
-            if (/[0-9]/.test(text) && (text.includes('₹') || text.includes('Rs') || text.includes('$') || text.includes('€') || /^[0-9,.]+$/.test(text))) {
-              rawPriceText = text;
-              break;
-            }
-          }
+          // Semantically prominent container (strong element, or font-size >= 20px / 1.5rem, or primary price class)
+          const fontSize = parseFloat(style.fontSize) || 0;
+          return el.tagName === 'STRONG' || fontSize >= 20 || /amt|nvo|vgmtxe/i.test(el.className);
+        });
+
+        if (candidates.length === 1) {
+          // Read full text content across all child character spans
+          rawPriceText = candidates[0].textContent.trim();
+        } else if (candidates.length > 1) {
+          throw new Error(`PRICE_AMBIGUOUS: Found ${candidates.length} candidate price containers in .offer-row`);
         }
       }
 
