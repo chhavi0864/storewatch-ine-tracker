@@ -38,7 +38,13 @@ export const scrapeController = {
       // Execute sequential scrape for all active products
       const summary = await scrapeRunner.runAllActive();
 
-      res.json(summary);
+      res.json({
+        ok: true,
+        total: summary.total,
+        success: summary.success,
+        failed: summary.failed,
+        completedAt: new Date().toISOString(),
+      });
     } catch (err) {
       next(err);
     }
