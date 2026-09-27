@@ -21,6 +21,10 @@ app.use(cors({
     if (/^http:\/\/localhost(:\d+)?$/.test(origin)) {
       return callback(null, true);
     }
+    // Allow Vercel preview and production deployments
+    if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
 
     return callback(new AppError(`Origin ${origin} not allowed by CORS`, 403, 'CORS_DISALLOWED'));
   },
