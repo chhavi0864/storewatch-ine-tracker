@@ -3,6 +3,8 @@ import { scrapeController } from '../controllers/scrapeController.js';
 
 const router = Router();
 
-router.post('/scrape-all', scrapeController.scrapeAll);
+router.route('/scrape-all')
+  .post(scrapeController.scrapeAll)
+  .get(scrapeController.scrapeAll);
 
 export default router;
